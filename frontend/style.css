@@ -112,7 +112,7 @@ h1 {
 #send-button {
   padding: 10px 20px;
   font-size: 1rem;
-  background-color: var(--color-accent);
+  background-color: var(--color-secondary);
   color: var(--color-surface-white);
   border: none;
   border-radius: 8px;
@@ -120,11 +120,11 @@ h1 {
 }
 
 #send-button:hover {
-  background-color: #e05e0f;
+  background-color: #164782;
 }
 
 #send-button:disabled {
-  background-color: #ffc79a;
+  background-color: #a8c3e3;
   cursor: not-allowed;
 }
 
