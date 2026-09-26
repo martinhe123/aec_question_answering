@@ -1,3 +1,13 @@
+:root {
+  /* Color palette */
+  --color-primary: #0a1f44;        /* dark navy */
+  --color-secondary: #1e5aa8;      /* blueprint blue */
+  --color-accent: #ff6a13;         /* safety orange */
+  --color-background: #eef2f6;     /* light blue-gray */
+  --color-surface-white: #ffffff;
+  --color-surface-pale-blue: #dceaf7;
+}
+
 * {
   box-sizing: border-box;
 }
@@ -5,8 +15,8 @@
 body {
   margin: 0;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-  background-color: #f4f5f7;
-  color: #1a1a1a;
+  background-color: var(--color-background);
+  color: var(--color-primary);
   display: flex;
   justify-content: center;
   padding: 24px;
@@ -15,9 +25,9 @@ body {
 .chat-container {
   width: 100%;
   max-width: 640px;
-  background: #ffffff;
+  background: var(--color-surface-white);
   border-radius: 12px;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 2px 12px rgba(10, 31, 68, 0.12);
   padding: 24px;
   display: flex;
   flex-direction: column;
@@ -26,11 +36,12 @@ body {
 h1 {
   font-size: 1.5rem;
   margin: 0 0 4px 0;
+  color: var(--color-primary);
 }
 
 .subtitle {
   margin: 0 0 16px 0;
-  color: #555;
+  color: var(--color-secondary);
   font-size: 0.95rem;
 }
 
@@ -39,14 +50,14 @@ h1 {
   min-height: 320px;
   max-height: 480px;
   overflow-y: auto;
-  border: 1px solid #e0e0e0;
+  border: 1px solid var(--color-surface-pale-blue);
   border-radius: 8px;
   padding: 12px;
   margin-bottom: 16px;
   display: flex;
   flex-direction: column;
   gap: 10px;
-  background: #fafafa;
+  background: var(--color-background);
 }
 
 .message {
@@ -61,14 +72,14 @@ h1 {
 
 .message.user {
   align-self: flex-end;
-  background-color: #0b6efd;
-  color: #ffffff;
+  background-color: var(--color-primary);
+  color: var(--color-surface-white);
 }
 
 .message.bot {
   align-self: flex-start;
-  background-color: #e9e9eb;
-  color: #1a1a1a;
+  background-color: var(--color-surface-pale-blue);
+  color: var(--color-primary);
 }
 
 .message.error {
@@ -87,31 +98,33 @@ h1 {
   flex: 1;
   padding: 10px 12px;
   font-size: 1rem;
-  border: 1px solid #ccc;
+  border: 1px solid var(--color-secondary);
   border-radius: 8px;
+  background-color: var(--color-surface-white);
+  color: var(--color-primary);
 }
 
 #chat-input:focus {
-  outline: 2px solid #0b6efd;
+  outline: 2px solid var(--color-accent);
   outline-offset: 1px;
 }
 
 #send-button {
   padding: 10px 20px;
   font-size: 1rem;
-  background-color: #0b6efd;
-  color: #ffffff;
+  background-color: var(--color-accent);
+  color: var(--color-surface-white);
   border: none;
   border-radius: 8px;
   cursor: pointer;
 }
 
 #send-button:hover {
-  background-color: #0955c9;
+  background-color: #e05e0f;
 }
 
 #send-button:disabled {
-  background-color: #9cbdf5;
+  background-color: #ffc79a;
   cursor: not-allowed;
 }
 
