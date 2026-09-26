@@ -101,35 +101,25 @@ enabled with explicit origins is not currently a vulnerability, and the live
 preflight behaves correctly. Setting `allow_credentials=False` would describe
 the application's actual request behavior more accurately.
 
-### 9. An unexpected empty model response becomes an internal server error
-
-The OpenAI SDK types message content as optional, but the response model requires
-a string. If the API ever returns a choice without text content,
-`ChatResponse(response=answer)` will raise a validation error and the visitor
-will receive a generic server failure. Check that the response contains text and
-return a controlled 502 error when it does not.
-
-### 10. The local virtual environment is inside the project folder
+### 9. The local virtual environment is inside the project folder
 
 `backend/.venv` contains generated dependency files. It is correctly excluded
 by `.gitignore`, so it is not committed or deployed, but keeping it inside the
 project adds storage and file-search noise. Moving it is optional.
 
-### 11. The test client emits a dependency deprecation warning
+### 10. The test client emits a dependency deprecation warning
 
 Importing FastAPI's current `TestClient` emits a warning that the installed
 Starlette test client's `httpx` integration is deprecated in favor of `httpx2`.
 This does not affect the deployed service. Upgrade the related test dependencies
 together rather than changing one package independently.
 
-### 12. There is no repeatable automated test suite
+### 11. Model classification accuracy has not been evaluated
 
-Local checks passed for the health route, successful mocked chat response,
-empty-input rejection, and 200-word limit. The deployed site, JavaScript API
-URL, workflow result, backend health, and production CORS were also checked.
-`frontend/script.js` passes a JavaScript syntax check, and the installed Python
-environment reports no broken requirements.
+The backend now has repeatable tests for its API contract, deterministic
+off-topic response, input validation, and three-resource category mappings.
+Those tests mock the model response; they do not measure whether the model
+chooses the correct category for real questions.
 
-These checks are not stored as tests, so later changes can silently regress
-them. Add a small backend test file and a basic frontend check once the app
-starts changing regularly.
+Create a small labeled set of clear and ambiguous questions and compare the
+model's category with the expected category before relying heavily on routing.

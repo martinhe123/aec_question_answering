@@ -48,7 +48,23 @@ receives message such as:
 {"message": "How many parking spaces fit in 40,000 sf?"}
 calls openai
 returns:
-{"response": "..."}
+{
+  "response": "...",
+  "category": "structures",
+  "resources": [
+    {"title": "ASCE Codes and Standards", "url": "https://..."}
+  ]
+}
+
+# aec classification and related resources
+1: use one structured OpenAI response to classify and answer the question
+2: valid categories are codes, safety, architecture, structures, energy,
+building_systems, construction, materials, sustainability, and general_aec
+3: use not_aec when the question is outside architecture, engineering,
+construction, infrastructure, planning, or the built environment
+4: the backend owns the resource URLs; the model returns a category, not URLs
+5: each AEC category maps to exactly 3 curated HTTPS resources
+6: off-topic questions receive a fixed brief response and no resources
 
 
 

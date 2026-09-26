@@ -11,11 +11,95 @@ const chatInput = document.getElementById("chat-input");
 const chatLog = document.getElementById("chat-log");
 const sendButton = document.getElementById("send-button");
 
+const CATEGORY_LABELS = {
+  codes: "Codes",
+  safety: "Safety",
+  architecture: "Architecture",
+  structures: "Structures",
+  energy: "Energy",
+  building_systems: "Building systems",
+  construction: "Construction",
+  materials: "Materials",
+  sustainability: "Sustainability",
+  general_aec: "General AEC",
+};
+
 function addMessage(text, type) {
   const bubble = document.createElement("div");
   bubble.className = `message ${type}`;
   bubble.textContent = text;
   chatLog.appendChild(bubble);
+  chatLog.scrollTop = chatLog.scrollHeight;
+  return bubble;
+}
+
+function showThinkingIndicator() {
+  const bubble = document.createElement("div");
+  bubble.className = "message bot thinking";
+  bubble.textContent = "Thinking…";
+  chatLog.appendChild(bubble);
+  chatLog.scrollTop = chatLog.scrollHeight;
+  return bubble;
+}
+
+function removeThinkingIndicator(bubble) {
+  if (bubble && bubble.parentNode === chatLog) {
+    chatLog.removeChild(bubble);
+  }
+}
+
+function isSafeHttpsUrl(value) {
+  try {
+    return new URL(value).protocol === "https:";
+  } catch (_) {
+    return false;
+  }
+}
+
+function addBotResponse(text, category, resources) {
+  const responseGroup = document.createElement("div");
+  responseGroup.className = "bot-response";
+
+  const bubble = document.createElement("div");
+  bubble.className = "message bot";
+  bubble.textContent = text;
+  responseGroup.appendChild(bubble);
+
+  if (CATEGORY_LABELS[category]) {
+    const categoryLabel = document.createElement("span");
+    categoryLabel.className = "category-label";
+    categoryLabel.textContent = CATEGORY_LABELS[category];
+    responseGroup.appendChild(categoryLabel);
+  }
+
+  const safeResources = Array.isArray(resources)
+    ? resources.filter((resource) => resource && isSafeHttpsUrl(resource.url)).slice(0, 3)
+    : [];
+
+  if (safeResources.length > 0) {
+    const resourcePanel = document.createElement("nav");
+    resourcePanel.className = "resource-panel";
+    resourcePanel.setAttribute("aria-label", "Related resources");
+
+    const heading = document.createElement("p");
+    heading.className = "resource-heading";
+    heading.textContent = "Related resources";
+    resourcePanel.appendChild(heading);
+
+    safeResources.forEach((resource) => {
+      const link = document.createElement("a");
+      link.className = "resource-link";
+      link.href = resource.url;
+      link.target = "_blank";
+      link.rel = "noopener noreferrer";
+      link.textContent = resource.title || "AEC resource";
+      resourcePanel.appendChild(link);
+    });
+
+    responseGroup.appendChild(resourcePanel);
+  }
+
+  chatLog.appendChild(responseGroup);
   chatLog.scrollTop = chatLog.scrollHeight;
 }
 
@@ -45,8 +129,7 @@ async function sendMessage(message) {
     throw new Error(detail);
   }
 
-  const data = await response.json();
-  return data.response;
+  return response.json();
 }
 
 chatForm.addEventListener("submit", async (event) => {
@@ -73,14 +156,20 @@ chatForm.addEventListener("submit", async (event) => {
   addMessage(message, "user");
   chatInput.value = "";
   sendButton.disabled = true;
+  chatInput.disabled = true;
+
+  const thinkingBubble = showThinkingIndicator();
 
   try {
-    const reply = await sendMessage(message);
-    addMessage(reply, "bot");
+    const result = await sendMessage(message);
+    removeThinkingIndicator(thinkingBubble);
+    addBotResponse(result.response, result.category, result.resources);
   } catch (err) {
+    removeThinkingIndicator(thinkingBubble);
     addMessage(err.message || "Unable to reach the server. Please try again later.", "error");
   } finally {
     sendButton.disabled = false;
+    chatInput.disabled = false;
     chatInput.focus();
   }
 });
