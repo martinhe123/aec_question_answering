@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AEC Chatbot</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main class="chat-container">
+    <h1>AEC Q&amp;A Chatbot</h1>
+    <p class="subtitle">Ask a question about architecture, engineering, or construction.</p>
+
+    <div id="chat-log" class="chat-log" role="log" aria-live="polite"></div>
+
+    <form id="chat-form" class="chat-form">
+      <label for="chat-input" class="visually-hidden">Your message</label>
+      <input
+        type="text"
+        id="chat-input"
+        name="message"
+        placeholder="Type your question..."
+        autocomplete="off"
+        required
+      >
+      <button type="submit" id="send-button">Send</button>
+    </form>
+  </main>
+
+  <script src="script.js"></script>
+</body>
+</html>
