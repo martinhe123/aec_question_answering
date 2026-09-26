@@ -1,92 +1,100 @@
 # Pre-Deployment Review
 
-Reviewed on September 26, 2026 against the current files and `overview.md`.
+Reviewed again on September 26, 2026 against the current local files,
+`overview.md`, the public GitHub repository, and the configured Render service.
 This is a review only; no application code was changed.
 
 ## Critical
 
-### 1. The published frontend would call the visitor's own computer
+### 1. The frontend is not currently published on GitHub Pages
 
-`frontend/script.js` still contains:
+The expected site URL and the likely `/frontend/` alternative both return 404:
+
+- `https://martinhe123.github.io/aec_question_answering/`
+- `https://martinhe123.github.io/aec_question_answering/frontend/`
+
+GitHub's Pages endpoint for the repository also returns 404, which is consistent
+with Pages not being configured. Visitors therefore cannot currently reach the
+chat interface.
+
+**Required before launch:** enable GitHub Pages for the repository and publish a
+directory whose root contains `index.html`. The current frontend files are under
+`frontend`, while GitHub Pages branch deployment normally publishes from the
+repository root or `/docs`. Move or copy the static files to the chosen publish
+root, or use a GitHub Actions Pages workflow that uploads `frontend`.
+
+### 2. The public repository still points the frontend at localhost
+
+The local working copy of `frontend/script.js` now correctly uses:
 
 ```javascript
-const API_URL = "http://127.0.0.1:8000/chat";
+const API_URL = "https://aec-question-answering.onrender.com/chat";
 ```
 
-That address works only when the frontend and backend are being tested on the
-same computer. From GitHub Pages it points to each visitor's computer, so chat
-requests will fail. An HTTPS page may also block the HTTP request as mixed
-content.
+However, that change is uncommitted. The version currently on GitHub still uses
+`http://127.0.0.1:8000/chat`. If Pages is enabled before the local change is
+committed and pushed, each visitor's browser will try to contact the visitor's
+own computer and the chat will fail. An HTTPS page may also block that HTTP
+request as mixed content.
 
-**Required before publishing the frontend:** deploy the backend and replace the
-value with its Render HTTPS endpoint, for example:
-
-```javascript
-const API_URL = "https://YOUR-SERVICE-NAME.onrender.com/chat";
-```
+**Required before launch:** commit and push the API URL change, then confirm the
+published `script.js` contains the Render HTTPS URL.
 
 ## Medium
 
-### 2. The Render service configuration is not recorded as code
+### 3. The Render deployment configuration is not recorded as code
 
-There is no `render.yaml`. Deployment can still work, but only if the Render
-dashboard is configured correctly. Because `main.py` and `requirements.txt`
-are in `backend`, the expected settings are:
+There is no `render.yaml`. The configured service is currently reachable and its
+health route returns `200 {"status":"ok"}`, but rebuilding it still depends on
+settings stored only in the Render dashboard. Because `main.py` and
+`requirements.txt` are in `backend`, the expected settings are:
 
 - Root Directory: `backend`
 - Build Command: `pip install -r requirements.txt`
 - Start Command: `uvicorn main:app --host 0.0.0.0 --port $PORT`
-- Environment variable: `OPENAI_API_KEY` set to a valid key
+- Environment variable: `OPENAI_API_KEY` set to a valid project key
 
-An incorrect root directory or start command will prevent startup. Do not
-upload or commit a plaintext API key.
+Record these settings in `render.yaml` or deployment documentation so the
+service can be recreated without guesswork. Never commit the real API key.
 
-### 3. This folder is not currently a Git repository
+### 4. A slow OpenAI request can leave the interface waiting for many minutes
 
-The folder has a `.gitignore`, but no `.git` directory. If this is the folder
-that is meant to supply the GitHub Pages site, it still needs to be initialized
-as a repository and connected to the intended GitHub repository, or its files
-need to be copied into an existing repository. If deployment is managed from a
-different repository, record that location in `overview.md` so the source of
-truth is clear.
+The backend does not set an application-specific timeout or retry policy. With
+the installed OpenAI client it inherits two retries and a 600-second read
+timeout. The frontend `fetch` has no timeout or cancellation either, so the Send
+button can remain disabled until the browser, Render, or upstream service ends
+the request.
 
-### 4. The production CORS origin must match the frontend origin
+Set a shorter backend timeout and translate timeout failures into a friendly
+error. Add an `AbortController` timeout in the browser so the interface recovers
+at approximately the same time.
 
-`backend/main.py` allows `https://martinhe123.github.io`. This is correct only
-if the published frontend uses that scheme and hostname. A GitHub Pages
-repository path is not part of the CORS origin.
+### 5. The public endpoint has only limited cost protection
 
-If the GitHub username changes or the site uses a custom domain, update
-`ALLOWED_ORIGINS` with the exact production origin or the browser will block
-chat requests. The two localhost origins can remain for local testing.
+`POST /chat` requires no authentication. Its ten-requests-per-minute limit is
+stored only in one Python process, resets on every restart, and is not shared by
+multiple instances. A caller can also bypass the frontend and call the endpoint
+directly.
 
-### 5. Cost protection is limited
+The OpenAI request sets no output-token limit, so a short input can still produce
+a comparatively long paid response. Before sharing the site widely, use a
+dedicated OpenAI project key, configure project budget alerts or limits, and set
+a conservative response-token limit. Use a shared rate-limit store only if the
+app grows beyond a small single-instance demo.
 
-The public `/chat` endpoint requires no authentication. It has an in-memory
-limit of 10 requests per client IP per minute, but that limit resets when the
-service restarts and is not shared between multiple instances. Direct callers
-can still consume OpenAI credits.
+### 6. The rate limiter is not safe for concurrent updates
 
-The OpenAI request also has no response-token limit, so a short input can still
-produce a comparatively long paid response.
+The synchronous `/chat` route can run in multiple worker threads, but
+`request_log` is a shared `defaultdict` of mutable lists with no lock. Two
+requests from the same address can prune, count, and append concurrently. This
+can allow requests beyond the intended limit, and adding multiple server
+processes would give each process a separate limit.
 
-**Before launch:** use a dedicated OpenAI project API key, configure project
-budget alerts or limits, and consider a conservative response-token limit.
-Stronger shared rate limiting can wait unless the app will be broadly shared.
+For a small demo, a lock around the in-memory check is sufficient. If the
+service later runs multiple processes or instances, move rate limiting to a
+shared service.
 
-### 6. Requests rely on long SDK timeouts and the frontend cannot cancel them
-
-The app does not set an intentional OpenAI timeout or retry policy. With the
-currently installed OpenAI package, it inherits two retries and a 600-second
-read timeout. A slow upstream request can therefore remain open much longer
-than a visitor expects and may outlast the hosting platform's request timeout.
-The frontend `fetch` also has no timeout, so the Send button can remain disabled
-while it waits.
-
-Set a shorter app-level timeout and return a friendly timeout response before
-wider use. A matching browser-side timeout would keep the interface responsive.
-
-## Not Urgent
+## Not So Urgent
 
 ### 7. The Python runtime version is not pinned
 
@@ -95,40 +103,47 @@ a Python version. A future hosting default change could alter dependency
 behavior. Add a Render runtime setting or `.python-version` file when
 reproducible deployments become important.
 
-### 8. `allow_credentials=True` is unnecessary for this frontend
+### 8. The local API-key fallback depends on the launch directory
+
+`backend/main.py` opens `secrets.txt` using a relative path. It works when the
+server is started inside `backend`, but not when it is imported or started from
+the repository root unless `OPENAI_API_KEY` is already set. Resolve the file
+relative to `main.py`, or document that local commands must run from `backend`.
+
+### 9. `allow_credentials=True` is unnecessary for this frontend
 
 The frontend does not send cookies or browser credentials. Keeping credentials
-enabled with explicit origins is not currently a vulnerability, but setting it
-to `False` would describe the application's actual behavior more accurately.
+enabled with explicit origins is not currently a vulnerability, and the live
+preflight correctly allows `https://martinhe123.github.io` while rejecting an
+unlisted origin. Setting `allow_credentials=False` would describe the actual
+request behavior more accurately.
 
-### 9. The rate limiter is intended only for a tiny single-process service
+### 10. Validation failures consume rate-limit slots
 
-Request history lives in Python memory and is keyed by the client IP visible to
-the app. It is neither persistent nor shared. After deployment, confirm from
-logs that separate visitors are identified as expected and are not grouped
-under one proxy address.
+The limiter runs before empty-input and 200-word validation. Repeated malformed
+requests therefore count toward the same limit as valid questions. This can be
+reasonable for abuse protection, but it should be an intentional policy. If the
+limit is meant to measure paid OpenAI calls, record the request only after
+validation succeeds.
 
-The limiter also runs before input validation, so empty or oversized requests
-use a request slot. That is acceptable for abuse protection, but it should be
-intentional.
+### 11. The local virtual environment is inside the project folder
 
-### 10. The local virtual environment is inside the project folder
+`backend/.venv` contains generated dependency files. It is correctly excluded
+by `.gitignore`, so it is not committed or deployed, but keeping it inside the
+project adds storage and file-search noise. Moving it is optional.
 
-`backend/.venv` contains generated dependency files. It is excluded by
-`.gitignore`, so it should not be committed or deployed, but keeping it inside
-the project adds storage and file-search noise. Moving it is optional.
+### 12. The test client emits a dependency deprecation warning
 
-### 11. The test client emits a dependency deprecation warning
-
-Importing FastAPI's current `TestClient` produces a warning that the installed
+Importing FastAPI's current `TestClient` emits a warning that the installed
 Starlette test client's `httpx` integration is deprecated in favor of `httpx2`.
-This does not affect the running service. Test dependency upgrades together
-rather than changing one package independently.
+This does not affect the running service. Upgrade the related test dependencies
+together rather than changing one package independently.
 
-### 12. There is no repeatable automated test suite
+### 13. There is no repeatable automated test suite
 
-The health route, empty-input rejection, 200-word limit, and CORS behavior pass
-local spot checks, and `frontend/script.js` is syntactically valid. However,
-those checks are not stored as tests, so later changes can silently regress
-them. A small backend test file and a basic frontend check would be useful once
-the app starts changing regularly.
+Local checks passed for the health route, successful mocked chat response,
+empty-input rejection, 200-word limit, and allowed and denied CORS preflights.
+`frontend/script.js` also passes a JavaScript syntax check, and the installed
+Python environment reports no broken requirements. These checks are not stored
+as tests, so later changes can silently regress them. Add a small backend test
+file and a basic frontend check once the app starts changing regularly.

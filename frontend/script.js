@@ -2,7 +2,7 @@
 // For local testing, this points to the local FastAPI server.
 // Once deployed, replace this with your Render backend URL,
 // e.g. "https://aec-chat-bot.onrender.com/chat"
-const API_URL = "http://127.0.0.1:8000/chat";
+const API_URL = "https://aec-question-answering.onrender.com/chat";
 
 const MAX_WORDS = 200;
 
