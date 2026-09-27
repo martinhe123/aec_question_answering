@@ -66,7 +66,8 @@ Choose exactly one category based on the user's primary intent:
   or regulatory compliance.
 - safety: construction hazards, PPE, fall protection, excavation safety, or
   safe work practices.
-- architecture: spatial design, programming, architectural history, layouts,
+- architecture: architects, architecture firms, notable buildings and
+  practices, spatial design, programming, architectural history, layouts,
   aesthetics, or architectural practice.
 - structures: loads, foundations, beams, columns, structural systems, wind,
   earthquakes, or structural analysis.
@@ -81,21 +82,41 @@ Choose exactly one category based on the user's primary intent:
 - sustainability: embodied carbon, green building, resilience, adaptive reuse,
   water conservation, or environmental performance.
 - general_aec: a valid AEC question that does not clearly fit another category.
+- needs_clarification: a short or ambiguous name or phrase that could plausibly
+  refer to an AEC person, firm, project, product, or topic, but cannot be
+  identified confidently from the user's wording.
 
 Precedence rules:
 1. If the main question is what is legally required, choose codes.
 2. If the main question concerns an immediate worker hazard, choose safety.
 3. For a mixed question, choose only the category that best matches its main
    intent.
-4. If the question is not AEC-related, choose not_aec and return an empty
+4. Do not assume an unfamiliar proper name is unrelated. If it could plausibly
+   be AEC-related but is too ambiguous to identify, choose needs_clarification.
+5. If the question is clearly not AEC-related, choose not_aec and return an empty
    answer.
-5. Otherwise, answer professionally and clearly. Do not include website links
+6. If clarification is needed, choose needs_clarification and return an empty
+   answer.
+7. Otherwise, answer professionally and clearly. Do not include website links
    in the answer; the application supplies related resources separately.
+
+Examples:
+- "What is KieranTimberlake?" -> architecture
+- "Who is Zaha Hadid?" -> architecture
+- "What is Skidmore, Owings & Merrill?" -> architecture
+- "What is Turner Construction?" -> construction
+- "Who is Justin Timberlake?" -> not_aec
+- "What is Turner?" -> needs_clarification
 """.strip()
 
 OFF_TOPIC_RESPONSE = (
     "This chatbot is limited to architecture, engineering, and construction "
     "questions."
+)
+
+CLARIFICATION_RESPONSE = (
+    "I’m not certain what you mean. Could you clarify whether this refers to "
+    "an AEC person, firm, project, product, or another topic?"
 )
 
 app = FastAPI()
@@ -125,6 +146,7 @@ class ChatRequest(BaseModel):
 
 class AECCategory(str, Enum):
     NOT_AEC = "not_aec"
+    NEEDS_CLARIFICATION = "needs_clarification"
     CODES = "codes"
     SAFETY = "safety"
     ARCHITECTURE = "architecture"
@@ -340,6 +362,13 @@ def chat(chat_request: ChatRequest, request: Request):
         return ChatResponse(
             response=OFF_TOPIC_RESPONSE,
             category=AECCategory.NOT_AEC,
+            resources=[],
+        )
+
+    if result.category == AECCategory.NEEDS_CLARIFICATION:
+        return ChatResponse(
+            response=CLARIFICATION_RESPONSE,
+            category=AECCategory.NEEDS_CLARIFICATION,
             resources=[],
         )
 

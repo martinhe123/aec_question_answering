@@ -60,6 +60,26 @@ class ChatRouteTests(unittest.TestCase):
             },
         )
 
+    def test_ambiguous_question_asks_for_clarification(self):
+        completion = completion_for(
+            main.AECCategory.NEEDS_CLARIFICATION, "Ignore this answer"
+        )
+
+        with patch.object(
+            main.client.beta.chat.completions, "parse", return_value=completion
+        ):
+            response = self.client.post("/chat", json={"message": "What is Turner?"})
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response.json(),
+            {
+                "response": main.CLARIFICATION_RESPONSE,
+                "category": "needs_clarification",
+                "resources": [],
+            },
+        )
+
     def test_empty_and_oversized_messages_are_rejected(self):
         self.assertEqual(
             self.client.post("/chat", json={"message": "   "}).status_code, 400
@@ -71,7 +91,10 @@ class ChatRouteTests(unittest.TestCase):
         )
 
     def test_every_aec_category_has_three_https_resources(self):
-        expected_categories = set(main.AECCategory) - {main.AECCategory.NOT_AEC}
+        expected_categories = set(main.AECCategory) - {
+            main.AECCategory.NOT_AEC,
+            main.AECCategory.NEEDS_CLARIFICATION,
+        }
 
         self.assertEqual(set(main.RESOURCE_MAP), expected_categories)
         for resources in main.RESOURCE_MAP.values():
@@ -79,6 +102,11 @@ class ChatRouteTests(unittest.TestCase):
             self.assertTrue(
                 all(resource.url.startswith("https://") for resource in resources)
             )
+
+    def test_prompt_includes_named_entity_examples(self):
+        self.assertIn('"What is KieranTimberlake?" -> architecture', main.SYSTEM_PROMPT)
+        self.assertIn('"Who is Justin Timberlake?" -> not_aec', main.SYSTEM_PROMPT)
+        self.assertIn('"What is Turner?" -> needs_clarification', main.SYSTEM_PROMPT)
 
 
 if __name__ == "__main__":

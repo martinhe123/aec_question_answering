@@ -62,9 +62,13 @@ returns:
 building_systems, construction, materials, sustainability, and general_aec
 3: use not_aec when the question is outside architecture, engineering,
 construction, infrastructure, planning, or the built environment
-4: the backend owns the resource URLs; the model returns a category, not URLs
-5: each AEC category maps to exactly 3 curated HTTPS resources
-6: off-topic questions receive a fixed brief response and no resources
+4: architecture includes architects, architecture firms, notable practices,
+and notable buildings
+5: use needs_clarification when a name or phrase could plausibly be AEC-related
+but is too ambiguous to identify confidently
+6: the backend owns the resource URLs; the model returns a category, not URLs
+7: each AEC category maps to exactly 3 curated HTTPS resources
+8: off-topic and clarification responses receive no resources
 
 
 
