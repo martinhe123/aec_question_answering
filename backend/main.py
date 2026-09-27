@@ -6,6 +6,8 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from openai import OpenAI, OpenAIError
 
+from chat_service import ChatService
+from conversation_store import ConversationNotFoundError, ConversationStore
 from prompts import CLARIFICATION_RESPONSE, OFF_TOPIC_RESPONSE, SYSTEM_PROMPT
 from resources import RESOURCE_MAP
 from schemas import AECCategory, ChatRequest, ChatResponse, ModelResult
@@ -30,6 +32,8 @@ client = OpenAI(api_key=api_key)
 
 MODEL_NAME = "gpt-4o-mini"
 MAX_WORDS = 200
+conversation_store = ConversationStore()
+chat_service = ChatService(client, conversation_store, MODEL_NAME)
 
 
 # Simple in-memory rate limiting for this small, single-instance app.
@@ -90,50 +94,18 @@ def chat(chat_request: ChatRequest, request: Request):
         )
 
     try:
-        completion = client.beta.chat.completions.parse(
-            model=MODEL_NAME,
-            messages=[
-                {"role": "system", "content": SYSTEM_PROMPT},
-                {"role": "user", "content": message},
-            ],
-            response_format=ModelResult,
+        return chat_service.respond(message, chat_request.conversation_id)
+    except ConversationNotFoundError:
+        raise HTTPException(
+            status_code=404,
+            detail="Conversation not found. Start a new conversation.",
         )
     except OpenAIError:
         raise HTTPException(
             status_code=502, detail="Error communicating with OpenAI API."
         )
-
-    result = completion.choices[0].message.parsed
-    if result is None:
-        raise HTTPException(
-            status_code=502, detail="OpenAI returned an unusable response."
-        )
-
-    if result.category == AECCategory.NOT_AEC:
-        return ChatResponse(
-            response=OFF_TOPIC_RESPONSE,
-            category=AECCategory.NOT_AEC,
-            resources=[],
-        )
-
-    if result.category == AECCategory.NEEDS_CLARIFICATION:
-        return ChatResponse(
-            response=CLARIFICATION_RESPONSE,
-            category=AECCategory.NEEDS_CLARIFICATION,
-            resources=[],
-        )
-
-    answer = result.answer.strip()
-    if not answer:
-        raise HTTPException(
-            status_code=502, detail="OpenAI returned an empty response."
-        )
-
-    return ChatResponse(
-        response=answer,
-        category=result.category,
-        resources=list(RESOURCE_MAP[result.category]),
-    )
+    except ValueError as error:
+        raise HTTPException(status_code=502, detail=str(error))
 
 
 @app.get("/")

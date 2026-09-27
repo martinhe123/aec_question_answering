@@ -10,6 +10,9 @@ const chatForm = document.getElementById("chat-form");
 const chatInput = document.getElementById("chat-input");
 const chatLog = document.getElementById("chat-log");
 const sendButton = document.getElementById("send-button");
+const newConversationButton = document.getElementById("new-conversation-button");
+
+let conversationId = null;
 
 const CATEGORY_LABELS = {
   codes: "Codes",
@@ -108,12 +111,17 @@ function countWords(text) {
 }
 
 async function sendMessage(message) {
+  const requestBody = { message };
+  if (conversationId) {
+    requestBody.conversation_id = conversationId;
+  }
+
   const response = await fetch(API_URL, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({ message }),
+    body: JSON.stringify(requestBody),
   });
 
   if (!response.ok) {
@@ -126,11 +134,21 @@ async function sendMessage(message) {
     } catch (_) {
       // response body wasn't valid JSON, keep default message
     }
-    throw new Error(detail);
+    const error = new Error(detail);
+    error.status = response.status;
+    throw error;
   }
 
   return response.json();
 }
+
+function startNewConversation() {
+  conversationId = null;
+  chatLog.replaceChildren();
+  chatInput.focus();
+}
+
+newConversationButton.addEventListener("click", startNewConversation);
 
 chatForm.addEventListener("submit", async (event) => {
   event.preventDefault();
@@ -157,19 +175,25 @@ chatForm.addEventListener("submit", async (event) => {
   chatInput.value = "";
   sendButton.disabled = true;
   chatInput.disabled = true;
+  newConversationButton.disabled = true;
 
   const thinkingBubble = showThinkingIndicator();
 
   try {
     const result = await sendMessage(message);
+    conversationId = result.conversation_id;
     removeThinkingIndicator(thinkingBubble);
     addBotResponse(result.response, result.category, result.resources);
   } catch (err) {
     removeThinkingIndicator(thinkingBubble);
+    if (err.status === 404) {
+      conversationId = null;
+    }
     addMessage(err.message || "Unable to reach the server. Please try again later.", "error");
   } finally {
     sendButton.disabled = false;
     chatInput.disabled = false;
+    newConversationButton.disabled = false;
     chatInput.focus();
   }
 });
