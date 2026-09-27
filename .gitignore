@@ -1,5 +1,15 @@
+# frontend-only repository
+backend/
+
+# local planning, audits, and deferred scope material
+overview/
+example/
+issues.md
+to_do_list.md
+assignment_turn_in_to_do_list.md
+
 # secrets
-backend/secrets.txt
+secrets.txt
 .env
 
 # python
